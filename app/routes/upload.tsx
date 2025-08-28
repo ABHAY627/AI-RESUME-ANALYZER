@@ -57,10 +57,16 @@ const Upload = () => {
             ? feedback.message.content
             : feedback.message.content[0].text;
 
-        data.feedback = JSON.parse(feedbackText);
+        try {
+            data.feedback = JSON.parse(feedbackText);
+        } catch {
+            data.feedback = feedbackText; // fallback to raw text
+        }
         await kv.set(`resume:${uuid}`, JSON.stringify(data));
         setStatusText('Analysis complete, redirecting...');
         console.log(data);
+        navigate(`/resume/${uuid}`);
+
     }
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
