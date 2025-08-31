@@ -47,22 +47,24 @@ const Upload = () => {
 
         setStatusText('Analyzing...');
 
-        const feedback = await ai.feedback(
-            uploadedFile.path,
-            prepareInstructions({ jobTitle, jobDescription })
-        )
-        if (!feedback) return setStatusText('Error: Failed to analyze resume');
 
-        const feedbackText = typeof feedback.message.content === 'string'
-            ? feedback.message.content
-            : feedback.message.content[0].text;
 
-        try {
-            data.feedback = JSON.parse(feedbackText);
-        } catch {
-            data.feedback = feedbackText; // fallback to raw text
-        }
-        await kv.set(`resume:${uuid}`, JSON.stringify(data));
+       // const feedback = await ai.feedback(
+       //      uploadedFile.path,
+       //      prepareInstructions({ jobTitle, jobDescription })
+       //  )
+       //  if (!feedback) return setStatusText('Error: Failed to analyze resume');
+
+        // const feedbackText = typeof feedback.message.content === 'string'
+        //     ? feedback.message.content
+        //     : feedback.message.content[0].text;
+        //
+        // try {
+        //     data.feedback = JSON.parse(feedbackText);
+        // } catch {
+        //     data.feedback = feedbackText; // fallback to raw text
+        // }
+        // await kv.set(`resume:${uuid}`, JSON.stringify(data));
         setStatusText('Analysis complete, redirecting...');
         console.log(data);
         navigate(`/resume/${uuid}`);
