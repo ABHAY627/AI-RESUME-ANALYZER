@@ -49,17 +49,17 @@ const Upload = () => {
 
 
 
-       // const feedback = await ai.feedback(
-       //      uploadedFile.path,
-       //      prepareInstructions({ jobTitle, jobDescription })
-       //  )
-       //  if (!feedback) return setStatusText('Error: Failed to analyze resume');
-       //
-       //  const feedbackText = typeof feedback.message.content === 'string'
-       //      ? feedback.message.content
-       //      : feedback.message.content[0].text;
+       const feedback = await ai.feedback(
+            uploadedFile.path,
+            prepareInstructions({ jobTitle, jobDescription })
+        )
+        if (!feedback) return setStatusText('Error: Failed to analyze resume');
 
-        const feedbackText = "your resume is good to go for this job.";
+        const feedbackText = typeof feedback.message.content === 'string'
+            ? feedback.message.content
+            : feedback.message.content[0].text;
+
+        // const feedbackText = "your resume is good to go for this job.";
 
         try {
             data.feedback = JSON.parse(feedbackText);
