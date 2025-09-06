@@ -8,7 +8,7 @@ const Navbar = () => {
                     ResumeXpert
                 </p>
             </Link>
-            <Link to="/about" className="primary-button w-fit">
+            <Link to="/upload" className="primary-button w-fit">
                 Upload Resume
             </Link>
         </nav>
