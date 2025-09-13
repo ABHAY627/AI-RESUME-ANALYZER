@@ -3,8 +3,9 @@ import Navbar from '../components/Navbar';
 import ResumeCard from "~/components/ResumeCard";
 import { resumes } from "../../constants";
 import {usePuterStore} from "~/lib/puter";
-import {useLocation, useNavigate} from "react-router";
+import {Link, useLocation, useNavigate} from "react-router";
 import {useEffect} from "react";
+import {Button} from "@mui/material";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -41,6 +42,13 @@ export default function Home() {
           </div>
       )}
     </section>
+      <section className="main-section">
+          <Link to={'/wipe'}>
+              <Button variant="contained" color="error">
+                  Wipe App Data
+              </Button>
+          </Link>
+      </section>
 
 
   </main>
