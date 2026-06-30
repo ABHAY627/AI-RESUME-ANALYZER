@@ -121,19 +121,21 @@ export default function ResumePage({ loaderData }: Route.ComponentProps) {
               <Details feedback={feedback} />
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-6 py-16 text-gray-400">
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center max-w-md">
-                <p className="text-red-600 font-semibold text-lg mb-2">Analysis Failed</p>
-                <p className="text-red-500 text-sm mb-4">
-                  The AI could not analyze this resume. This record has been saved but feedback is missing.
+            <div className="flex flex-col gap-4 py-8">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                <p className="text-amber-700 font-semibold text-lg mb-1">AI Analysis Unavailable</p>
+                <p className="text-amber-600 text-sm">
+                  Your resume was uploaded successfully but the AI analysis could not be completed —
+                  likely due to an API quota limit. Your PDF is shown on the left.
                 </p>
-                <Link
-                  to="/upload"
-                  className="primary-button w-fit px-6 py-2 text-sm"
-                >
-                  Try Again
-                </Link>
               </div>
+              <p className="text-sm text-gray-400 text-center">
+                Fix your Gemini API key and{" "}
+                <Link to="/upload" className="text-indigo-500 hover:underline">
+                  upload again
+                </Link>{" "}
+                to get feedback.
+              </p>
             </div>
           )}
         </section>
