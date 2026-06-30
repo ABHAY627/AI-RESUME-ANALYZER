@@ -1,37 +1,27 @@
+import { redirect } from "react-router";
 import { requireUser } from "~/lib/session.server";
-import { db } from "~/lib/db.server";
+import { sql } from "~/lib/db.server";
 import type { Route } from "./+types/resume-pdf";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
     const { id } = params;
     const user = await requireUser(request);
-    const resume = await db.resume.findUnique({ where: { id } });
 
-    if (!resume || resume.userId !== user.id) {
+    const rows = await sql()`SELECT pdf_url, user_id FROM "Resume" WHERE id = ${id} LIMIT 1`;
+    const resume = rows[0] as { pdf_url: string; user_id: string } | undefined;
+
+    if (!resume || resume.user_id !== user.id) {
         throw new Response("Not Found", { status: 404 });
     }
 
-    if (!resume.pdfUrl) {
+    if (!resume.pdf_url) {
         throw new Response("No PDF available", { status: 404 });
     }
 
-    // Stream directly from Vercel Blob — avoids buffering entire PDF in memory
-    const response = await fetch(resume.pdfUrl);
-
-    if (!response.ok) {
-        throw new Response("Failed to fetch PDF", { status: 502 });
-    }
-
-    // Pass the stream through with corrected headers
-    return new Response(response.body, {
-        status: 200,
-        headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": "inline",
-            "X-Frame-Options": "SAMEORIGIN",
-            "Cache-Control": "private, max-age=3600",
-        },
-    });
+    // Redirect directly to the Vercel Blob URL
+    // The iframe loads it cross-origin — use <embed> on the client side instead of <iframe>
+    // to avoid X-Frame-Options issues
+    throw redirect(resume.pdf_url);
 }
 
 export default function ResumePdf() {

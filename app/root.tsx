@@ -51,12 +51,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
+    message = error.status === 404 ? "404" : `Error ${error.status}`;
+    details = error.status === 404
+      ? "The requested page could not be found."
+      : error.statusText || details;
+  } else if (error && error instanceof Error) {
     details = error.message;
     stack = error.stack;
   }
@@ -64,9 +63,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <main className="pt-16 p-4 container mx-auto">
       <h1>{message}</h1>
-      <p>{details}</p>
+      <p className="text-red-600 font-mono text-sm mt-2">{details}</p>
       {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+        <pre className="w-full p-4 overflow-x-auto text-xs bg-gray-100 rounded mt-4">
           <code>{stack}</code>
         </pre>
       )}

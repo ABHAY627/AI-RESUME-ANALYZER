@@ -4,7 +4,7 @@ import Navbar from "~/components/Navbar";
 import ResumeCard from "~/components/ResumeCard";
 import { resumes as demoResumes } from "../../resumeData";
 import { optionalUser } from "~/lib/session.server";
-import { db } from "~/lib/db.server";
+import { sql } from "~/lib/db.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -30,25 +30,30 @@ export async function loader({ request }: Route.LoaderArgs) {
   }[] = [];
 
   if (user) {
-    userResumes = await db.resume.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        companyName: true,
-        jobTitle: true,
-        pdfUrl: true,
-        feedback: true,
-      },
-    });
+    const rows = await sql()`
+      SELECT id, company_name, job_title, pdf_url, feedback
+      FROM "Resume"
+      WHERE user_id = ${user.id}
+      ORDER BY created_at DESC
+    `;
+    userResumes = rows.map((r) => ({
+      id: r.id as string,
+      companyName: r.company_name as string,
+      jobTitle: r.job_title as string,
+      pdfUrl: r.pdf_url as string,
+      feedback: r.feedback,
+    }));
+  }
+
+  let userProfile: { name: string | null; email: string } | null = null;
+  if (user) {
+    const userRows = await sql()`SELECT name, email FROM "User" WHERE id = ${user.id} LIMIT 1`;
+    const u = userRows[0] as { name: string | null; email: string } | undefined;
+    userProfile = u ?? null;
   }
 
   return {
-    user: user
-      ? await db.user
-          .findUnique({ where: { id: user.id }, select: { name: true, email: true } })
-          .then((u: { name: string | null; email: string } | null) => u ?? null)
-      : null,
+    user: userProfile,
     userResumes,
   };
 }

@@ -1,20 +1,13 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-function createPrismaClient() {
-    const sql = neon(process.env.DATABASE_URL!);
-    const adapter = new PrismaNeon(sql as Parameters<typeof PrismaNeon>[0]);
-    return new PrismaClient({ adapter });
+function getClient(): NeonQueryFunction<false, false> {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL is not set");
+    return neon(url);
 }
 
-// Prevent multiple instances in development due to hot reload
-const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined;
-};
-
-export const db = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = db;
+// Lazy singleton
+let _sql: NeonQueryFunction<false, false> | undefined;
+export function sql(): NeonQueryFunction<false, false> {
+    return (_sql ??= getClient());
 }

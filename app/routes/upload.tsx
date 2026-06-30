@@ -1,11 +1,10 @@
 import { useRef, useState, useEffect } from "react";
-import { redirect, useFetcher, useLoaderData } from "react-router";
+import { redirect, useFetcher } from "react-router";
 import { useNavigate } from "react-router";
 import Navbar from "~/components/Navbar";
 import FileUploader from "~/components/FileUploader";
 import { requireUser } from "~/lib/session.server";
-import { uploadFile } from "~/lib/storage.server";
-import { db } from "~/lib/db.server";
+import { sql } from "~/lib/db.server";
 import { env } from "~/lib/env.server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prepareInstructions } from "../../resumeData";
@@ -56,38 +55,22 @@ export async function action({ request }: Route.ActionArgs) {
 
     // Idempotency — reuse existing record if already saved (with or without feedback)
     const idempotencyKey = `${user.id}-${slugify(companyName)}-${slugify(jobTitle)}`;
-    const existing = await db.resume.findUnique({ where: { idempotencyKey } });
-    if (existing) return { redirectTo: `/resume/${existing.id}` };
+    const existingRows = await sql()`SELECT id FROM "Resume" WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
+    if (existingRows[0]) return { redirectTo: `/resume/${(existingRows[0] as { id: string }).id}` };
 
     // Upload PDF
     const pdfBuffer = await file.arrayBuffer();
-    const pdfBlob   = new Blob([pdfBuffer], { type: "application/pdf" });
-    const filename  = `resumes/${user.id}/${Date.now()}-${slugify(companyName)}-${slugify(jobTitle)}.pdf`;
-
-    let pdfUrl: string;
-    try {
-        pdfUrl = await uploadFile(pdfBlob, filename, "application/pdf");
-    } catch (err) {
-        console.error("[Blob]", err);
-        return { error: "Failed to upload resume. Please try again." };
-    }
+    const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
 
     // ── Save to DB first (always, before AI) ─────────────────────────────────
-    const resume = await db.resume.create({
-        data: {
-            userId: user.id,
-            companyName,
-            jobTitle,
-            jobDescription,
-            pdfUrl,
-            imageUrl: pdfUrl,
-            feedback: null,
-            idempotencyKey,
-        },
-    });
+    const resumeRows = await sql()`
+        INSERT INTO "Resume" (id, user_id, company_name, job_title, job_description, pdf_url, image_url, pdf_data, feedback, idempotency_key)
+        VALUES (gen_random_uuid()::text, ${user.id}, ${companyName}, ${jobTitle}, ${jobDescription}, '', '', ${base64Pdf}, NULL, ${idempotencyKey})
+        RETURNING id
+    `;
+    const resumeId = (resumeRows[0] as { id: string }).id;
 
     // ── Gemini AI analysis (non-blocking — resume is shown regardless) ────────
-    const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
     const genAI  = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const model  = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = prepareInstructions({ jobTitle, jobDescription });
@@ -101,16 +84,13 @@ export async function action({ request }: Route.ActionArgs) {
         const cleaned  = stripCodeFences(raw);
         const feedback = JSON.parse(cleaned);
 
-        await db.resume.update({
-            where: { id: resume.id },
-            data: { feedback: feedback as object },
-        });
+        await sql()`UPDATE "Resume" SET feedback = ${JSON.stringify(feedback)}::jsonb WHERE id = ${resumeId}`;
     } catch (err) {
         console.error("[Gemini]", err);
         // Resume still saved with PDF — user sees it with error message on right
     }
 
-    return { redirectTo: `/resume/${resume.id}` };
+    return { redirectTo: `/resume/${resumeId}` };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

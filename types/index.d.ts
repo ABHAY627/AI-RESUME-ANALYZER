@@ -1,3 +1,26 @@
+interface DbUser {
+    id: string;
+    email: string;
+    password: string;
+    name: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+interface DbResume {
+    id: string;
+    user_id: string;
+    company_name: string;
+    job_title: string;
+    job_description: string;
+    pdf_url: string;
+    image_url: string;
+    feedback: unknown;
+    idempotency_key: string;
+    created_at: string;
+    updated_at: string;
+}
+
 interface Job {
     title: string;
     description: string;

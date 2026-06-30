@@ -1,5 +1,5 @@
 import { Form, redirect, useLoaderData } from "react-router";
-import { db } from "~/lib/db.server";
+import { sql } from "~/lib/db.server";
 import { requireUser } from "~/lib/session.server";
 import type { Route } from "./+types/wipe";
 
@@ -12,7 +12,8 @@ export const meta = () => [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  const count = await db.resume.count({ where: { userId: user.id } });
+  const countRows = await sql()`SELECT COUNT(*)::int as count FROM "Resume" WHERE user_id = ${user.id}`;
+  const count = countRows[0].count as number;
   return { count };
 }
 
@@ -20,7 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const user = await requireUser(request);
-  await db.resume.deleteMany({ where: { userId: user.id } });
+  await sql()`DELETE FROM "Resume" WHERE user_id = ${user.id}`;
   throw redirect("/");
 }
 

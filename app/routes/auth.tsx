@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
 import { z } from "zod";
-import { db } from "~/lib/db.server";
+import { sql } from "~/lib/db.server";
 import {
     hashPassword,
     verifyPassword,
@@ -55,11 +55,16 @@ export async function action({ request }: Route.ActionArgs) {
         if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors, intent };
 
         const { name, email, password } = parsed.data;
-        const existing = await db.user.findUnique({ where: { email } });
-        if (existing) return { errors: { email: ["An account with this email already exists"] }, intent };
+        const existingRows = await sql()`SELECT id FROM "User" WHERE email = ${email} LIMIT 1`;
+        if (existingRows[0]) return { errors: { email: ["An account with this email already exists"] }, intent };
 
         const hashed = await hashPassword(password);
-        const user = await db.user.create({ data: { name, email, password: hashed } });
+        const newRows = await sql()`
+            INSERT INTO "User" (id, email, password, name)
+            VALUES (gen_random_uuid()::text, ${email}, ${hashed}, ${name})
+            RETURNING *
+        `;
+        const user = newRows[0] as DbUser;
         throw redirect(next, {
             headers: { "Set-Cookie": createAuthCookie(createToken(user.id, user.email)) },
         });
@@ -73,7 +78,8 @@ export async function action({ request }: Route.ActionArgs) {
         if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors, intent };
 
         const { email, password } = parsed.data;
-        const user = await db.user.findUnique({ where: { email } });
+        const rows = await sql()`SELECT * FROM "User" WHERE email = ${email} LIMIT 1`;
+        const user = rows[0] as DbUser | undefined;
         if (!user) return { errors: { email: ["No account found with this email"] }, intent };
 
         const valid = await verifyPassword(password, user.password);
