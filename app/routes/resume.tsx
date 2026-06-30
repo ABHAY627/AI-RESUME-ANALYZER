@@ -4,14 +4,15 @@ import {usePuterStore} from "~/lib/puter";
 import Summary from "~/components/Summary";
 import ATS from "~/components/ATS";
 import Details from "~/components/Details";
+import { resumes } from "../../resumeData";
 
 export const meta = () => ([
-    { title: 'Resumind | Review ' },
+    { title: 'ResumExpert | Review' },
     { name: 'description', content: 'Detailed overview of your resume' },
 ])
 
 const Resume = () => {
-    const { auth, isLoading, fs, kv } = usePuterStore();
+    const { auth, isLoading, puterReady, fs, kv } = usePuterStore();
     const { id } = useParams();
     const [imageUrl, setImageUrl] = useState('');
     const [resumeUrl, setResumeUrl] = useState('');
@@ -19,32 +20,37 @@ const Resume = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if(!isLoading && !auth.isAuthenticated) navigate(`/auth?next=/resume/${id}`);
-    }, [isLoading])
+        if (puterReady && !isLoading && !auth.isAuthenticated) navigate(`/auth?next=/resume/${id}`);
+    }, [puterReady, isLoading]);
 
     useEffect(() => {
         const loadResume = async () => {
-            const resume = await kv.get(`resume:${id}`);
+            // Check static demo resumes first
+            const staticResume = resumes.find((r) => r.id === id);
+            if (staticResume) {
+                setImageUrl(staticResume.imagePath);
+                setResumeUrl(staticResume.resumePath);
+                setFeedback(staticResume.feedback);
+                return;
+            }
 
-            if(!resume) return;
+            // Load from Puter KV / FS for user-uploaded resumes
+            const resume = await kv.get(`resume:${id}`);
+            if (!resume) return;
 
             const data = JSON.parse(resume);
 
             const resumeBlob = await fs.read(data.resumePath);
-            if(!resumeBlob) return;
-
+            if (!resumeBlob) return;
             const pdfBlob = new Blob([resumeBlob], { type: 'application/pdf' });
-            const resumeUrl = URL.createObjectURL(pdfBlob);
-            setResumeUrl(resumeUrl);
+            setResumeUrl(URL.createObjectURL(pdfBlob));
 
             const imageBlob = await fs.read(data.imagePath);
-            if(!imageBlob) return;
-            const imageUrl = URL.createObjectURL(imageBlob);
-            setImageUrl(imageUrl);
+            if (!imageBlob) return;
+            setImageUrl(URL.createObjectURL(imageBlob));
 
             setFeedback(data.feedback);
-            console.log({resumeUrl, imageUrl, feedback: data.feedback });
-        }
+        };
 
         loadResume();
     }, [id]);
@@ -53,21 +59,26 @@ const Resume = () => {
         <main className="!pt-0">
             <nav className="resume-nav">
                 <Link to="/" className="back-button">
-                    <img src="/icons/back.svg" alt="logo" className="w-2.5 h-2.5" />
+                    <img src="/icons/back.svg" alt="back" className="w-2.5 h-2.5" />
                     <span className="text-gray-800 text-sm font-semibold">Back to Homepage</span>
                 </Link>
             </nav>
             <div className="flex flex-row w-full max-lg:flex-col-reverse">
-                <section className="feedback-section bg-[url('/images/bg-small.svg') bg-cover h-[100vh] sticky top-0 items-center justify-center">
-                    {imageUrl && resumeUrl && (
-                        <div className="animate-in fade-in duration-1000 gradient-border max-sm:m-0 h-[90%] max-wxl:h-fit w-fit">
+                <section className="feedback-section bg-[url('/images/bg-small.svg')] bg-cover h-[100vh] sticky top-0 flex items-center justify-center">
+                    {imageUrl ? (
+                        <div className="animate-in fade-in duration-1000 gradient-border max-sm:m-0 h-[90%] w-fit">
                             <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
                                 <img
                                     src={imageUrl}
                                     className="w-full h-full object-contain rounded-2xl"
                                     title="resume"
+                                    alt="resume preview"
                                 />
                             </a>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-full">
+                            <img src="/images/resume-scan-2.gif" className="w-48" alt="loading" />
                         </div>
                     )}
                 </section>
@@ -80,11 +91,12 @@ const Resume = () => {
                             <Details feedback={feedback} />
                         </div>
                     ) : (
-                        <img src="/images/resume-scan-2.gif" className="w-full" />
+                        <img src="/images/resume-scan-2.gif" className="w-full" alt="analyzing" />
                     )}
                 </section>
             </div>
         </main>
-    )
-}
-export default Resume
+    );
+};
+
+export default Resume;

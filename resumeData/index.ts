@@ -1,4 +1,4 @@
-export const resumes: Resume[]  = [
+export const resumes: Resume[] = [
     {
         id: "1",
         companyName: "Google",
@@ -136,9 +136,9 @@ export const AIResponseFormat = `
     }`;
 
 export const prepareInstructions = ({
-                                        jobTitle,
-                                        jobDescription,
-                                    }: {
+    jobTitle,
+    jobDescription,
+}: {
     jobTitle: string;
     jobDescription: string;
 }) =>
