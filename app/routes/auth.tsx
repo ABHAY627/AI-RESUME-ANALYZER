@@ -21,7 +21,6 @@ export const meta = () => [
 export async function loader({ request }: Route.LoaderArgs) {
     const user = getUserFromRequest(request);
     if (user) throw redirect("/");
-    // Read `next` server-side so it's available during SSR
     const url = new URL(request.url);
     const next = url.searchParams.get("next") ?? "/";
     return { next };
@@ -53,25 +52,14 @@ export async function action({ request }: Route.ActionArgs) {
             email: formData.get("email"),
             password: formData.get("password"),
         });
-
-        if (!parsed.success) {
-            return { errors: parsed.error.flatten().fieldErrors, intent };
-        }
+        if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors, intent };
 
         const { name, email, password } = parsed.data;
         const existing = await db.user.findUnique({ where: { email } });
-        if (existing) {
-            return {
-                errors: { email: ["An account with this email already exists"] },
-                intent,
-            };
-        }
+        if (existing) return { errors: { email: ["An account with this email already exists"] }, intent };
 
         const hashed = await hashPassword(password);
-        const user = await db.user.create({
-            data: { name, email, password: hashed },
-        });
-
+        const user = await db.user.create({ data: { name, email, password: hashed } });
         throw redirect(next, {
             headers: { "Set-Cookie": createAuthCookie(createToken(user.id, user.email)) },
         });
@@ -82,21 +70,14 @@ export async function action({ request }: Route.ActionArgs) {
             email: formData.get("email"),
             password: formData.get("password"),
         });
-
-        if (!parsed.success) {
-            return { errors: parsed.error.flatten().fieldErrors, intent };
-        }
+        if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors, intent };
 
         const { email, password } = parsed.data;
         const user = await db.user.findUnique({ where: { email } });
-        if (!user) {
-            return { errors: { email: ["No account found with this email"] }, intent };
-        }
+        if (!user) return { errors: { email: ["No account found with this email"] }, intent };
 
         const valid = await verifyPassword(password, user.password);
-        if (!valid) {
-            return { errors: { password: ["Incorrect password"] }, intent };
-        }
+        if (!valid) return { errors: { password: ["Incorrect password"] }, intent };
 
         throw redirect(next, {
             headers: { "Set-Cookie": createAuthCookie(createToken(user.id, user.email)) },
@@ -108,12 +89,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type FieldErrors = {
-    name?: string[];
-    email?: string[];
-    password?: string[];
-};
-
+type FieldErrors = { name?: string[]; email?: string[]; password?: string[] };
 type ActionData = { errors: FieldErrors; intent: "login" | "register" } | undefined;
 
 export default function Auth() {
@@ -122,112 +98,136 @@ export default function Auth() {
     const actionData = useActionData<ActionData>();
     const navigation = useNavigation();
     const isSubmitting = navigation.state === "submitting";
-
-    const errors =
-        actionData && "errors" in actionData
-            ? (actionData.errors as FieldErrors)
-            : null;
+    const errors = actionData && "errors" in actionData ? (actionData.errors as FieldErrors) : null;
 
     return (
-        <main className="bg-[url('/images/bg-auth.svg')] bg-cover min-h-screen flex items-center justify-center">
-            <div className="gradient-border shadow-lg">
-                <section className="flex flex-col gap-8 bg-white rounded-2xl p-10 w-[480px] max-w-full">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                        <h1>Welcome</h1>
-                        <h2>
-                            {mode === "login"
-                                ? "Sign in to continue your job journey"
-                                : "Create your account"}
-                        </h2>
-                    </div>
+        <main className="bg-[url('/images/bg-auth.svg')] bg-cover min-h-screen flex items-center justify-center px-4">
+            <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Card */}
+                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
-                    <Form method="post" className="flex flex-col gap-4 w-full">
-                        <input type="hidden" name="intent" value={mode} />
-                        <input type="hidden" name="next" value={next} />
+                    {/* Top accent bar */}
+                    <div className="h-1.5 w-full primary-gradient" />
 
-                        {mode === "register" && (
-                            <div className="form-div">
-                                <label htmlFor="name">Full Name</label>
+                    <div className="px-8 py-10 flex flex-col gap-6">
+
+                        {/* Header */}
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <p className="text-2xl font-bold text-gradient">ResumeXpert</p>
+                            <h2 className="text-2xl font-semibold text-gray-800 mt-1">
+                                {mode === "login" ? "Welcome back" : "Create account"}
+                            </h2>
+                            <p className="text-sm text-gray-400 mt-0.5">
+                                {mode === "login"
+                                    ? "Sign in to continue your job journey"
+                                    : "Start getting AI feedback on your resume"}
+                            </p>
+                        </div>
+
+                        {/* Tab switcher */}
+                        <div className="flex bg-gray-100 rounded-full p-1">
+                            <button
+                                type="button"
+                                onClick={() => setMode("login")}
+                                className={`flex-1 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                                    mode === "login"
+                                        ? "bg-white shadow text-gray-800"
+                                        : "text-gray-400 hover:text-gray-600"
+                                }`}
+                            >
+                                Sign In
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode("register")}
+                                className={`flex-1 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                                    mode === "register"
+                                        ? "bg-white shadow text-gray-800"
+                                        : "text-gray-400 hover:text-gray-600"
+                                }`}
+                            >
+                                Sign Up
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <Form method="post" className="flex flex-col gap-4 w-full">
+                            <input type="hidden" name="intent" value={mode} />
+                            <input type="hidden" name="next" value={next} />
+
+                            {mode === "register" && (
+                                <div className="flex flex-col gap-1.5">
+                                    <label htmlFor="name" className="text-sm font-medium text-gray-600">
+                                        Full Name
+                                    </label>
+                                    <input
+                                        id="name"
+                                        name="name"
+                                        type="text"
+                                        placeholder="Jane Doe"
+                                        required
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition text-gray-800 text-sm bg-gray-50"
+                                    />
+                                    {errors?.name && (
+                                        <p className="text-red-500 text-xs mt-0.5">{errors.name[0]}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-1.5">
+                                <label htmlFor="email" className="text-sm font-medium text-gray-600">
+                                    Email address
+                                </label>
                                 <input
-                                    id="name"
-                                    name="name"
-                                    type="text"
-                                    placeholder="Jane Doe"
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    placeholder="you@example.com"
                                     required
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition text-gray-800 text-sm bg-gray-50"
                                 />
-                                {errors?.name && (
-                                    <p className="text-red-500 text-sm">{errors.name[0]}</p>
+                                {errors?.email && (
+                                    <p className="text-red-500 text-xs mt-0.5">{errors.email[0]}</p>
                                 )}
                             </div>
-                        )}
 
-                        <div className="form-div">
-                            <label htmlFor="email">Email</label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="you@example.com"
-                                required
-                            />
-                            {errors?.email && (
-                                <p className="text-red-500 text-sm">{errors.email[0]}</p>
-                            )}
-                        </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label htmlFor="password" className="text-sm font-medium text-gray-600">
+                                    Password
+                                </label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    placeholder={mode === "register" ? "At least 6 characters" : "••••••••"}
+                                    required
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition text-gray-800 text-sm bg-gray-50"
+                                />
+                                {errors?.password && (
+                                    <p className="text-red-500 text-xs mt-0.5">{errors.password[0]}</p>
+                                )}
+                            </div>
 
-                        <div className="form-div">
-                            <label htmlFor="password">Password</label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                placeholder={mode === "register" ? "At least 6 characters" : "••••••••"}
-                                required
-                            />
-                            {errors?.password && (
-                                <p className="text-red-500 text-sm">{errors.password[0]}</p>
-                            )}
-                        </div>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full py-3 rounded-xl primary-gradient text-white font-semibold text-sm mt-1 transition-opacity disabled:opacity-60 cursor-pointer"
+                            >
+                                {isSubmitting
+                                    ? "Please wait…"
+                                    : mode === "login"
+                                    ? "Sign In"
+                                    : "Create Account"}
+                            </button>
+                        </Form>
 
-                        <button
-                            type="submit"
-                            className="auth-button text-xl mt-2"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting
-                                ? "Please wait..."
-                                : mode === "login"
-                                ? "Sign In"
-                                : "Create Account"}
-                        </button>
-                    </Form>
-
-                    <p className="text-center text-sm text-gray-500">
-                        {mode === "login" ? (
-                            <>
-                                Don&apos;t have an account?{" "}
-                                <button
-                                    type="button"
-                                    onClick={() => setMode("register")}
-                                    className="text-indigo-500 hover:underline font-medium"
-                                >
-                                    Sign Up
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                Already have an account?{" "}
-                                <button
-                                    type="button"
-                                    onClick={() => setMode("login")}
-                                    className="text-indigo-500 hover:underline font-medium"
-                                >
-                                    Sign In
-                                </button>
-                            </>
-                        )}
-                    </p>
-                </section>
+                        {/* Footer note */}
+                        <p className="text-center text-xs text-gray-400">
+                            By continuing you agree to our{" "}
+                            <span className="text-indigo-400">Terms of Service</span>
+                        </p>
+                    </div>
+                </div>
             </div>
         </main>
     );

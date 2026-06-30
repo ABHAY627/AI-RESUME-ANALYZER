@@ -15,27 +15,25 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         throw new Response("No PDF available", { status: 404 });
     }
 
-    // Fetch from Vercel Blob (public URL — no auth header needed)
+    // Stream directly from Vercel Blob — avoids buffering entire PDF in memory
     const response = await fetch(resume.pdfUrl);
 
     if (!response.ok) {
         throw new Response("Failed to fetch PDF", { status: 502 });
     }
 
-    const pdfBuffer = await response.arrayBuffer();
-
-    return new Response(pdfBuffer, {
+    // Pass the stream through with corrected headers
+    return new Response(response.body, {
+        status: 200,
         headers: {
             "Content-Type": "application/pdf",
             "Content-Disposition": "inline",
-            // Allow embedding in iframe from same origin
             "X-Frame-Options": "SAMEORIGIN",
             "Cache-Control": "private, max-age=3600",
         },
     });
 }
 
-// No UI component needed — this route only serves binary data
 export default function ResumePdf() {
     return null;
 }
