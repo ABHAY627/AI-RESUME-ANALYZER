@@ -5,6 +5,12 @@ interface Job {
     requiredSkills: string[];
 }
 
+interface AuthUser {
+    id: string;
+    email: string;
+    name?: string | null;
+}
+
 interface Resume {
     id: string;
     companyName?: string;

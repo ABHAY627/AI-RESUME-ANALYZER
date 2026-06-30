@@ -1,64 +1,64 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { usePuterStore } from "~/lib/puter";
+import { Form, redirect, useLoaderData } from "react-router";
+import { db } from "~/lib/db.server";
+import { requireUser } from "~/lib/session.server";
+import type { Route } from "./+types/wipe";
 
-const WipeApp = () => {
-    const { auth, isLoading, puterReady, error, clearError, fs, ai, kv } = usePuterStore();
-    const navigate = useNavigate();
-    const [files, setFiles] = useState<FSItem[]>([]);
+export const meta = () => [
+  { title: "ResumeXpert | Wipe Data" },
+  { name: "description", content: "Delete all your analyzed resumes" },
+];
 
-    const loadFiles = async () => {
-        const files = (await fs.readDir("./")) as FSItem[];
-        setFiles(files);
-    };
+// ─── Loader ───────────────────────────────────────────────────────────────────
 
-    useEffect(() => {
-        loadFiles();
-    }, []);
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await requireUser(request);
+  const count = await db.resume.count({ where: { userId: user.id } });
+  return { count };
+}
 
-    useEffect(() => {
-        if (puterReady && !isLoading && !auth.isAuthenticated) {
-            navigate("/auth?next=/wipe");
-        }
-    }, [puterReady, isLoading]);
+// ─── Action ───────────────────────────────────────────────────────────────────
 
-    const handleDelete = async () => {
-        files.forEach(async (file) => {
-            await fs.delete(file.path);
-        });
-        await kv.flush();
-        loadFiles();
-    };
+export async function action({ request }: Route.ActionArgs) {
+  const user = await requireUser(request);
+  await db.resume.deleteMany({ where: { userId: user.id } });
+  throw redirect("/");
+}
 
-    if (isLoading) {
-        return <div>Loading...</div>;
-    }
+// ─── Component ────────────────────────────────────────────────────────────────
 
-    if (error) {
-        return <div>Error {error}</div>;
-    }
+export default function WipeApp() {
+  const { count } = useLoaderData<typeof loader>();
 
-    return (
-        <div>
-            Authenticated as: {auth.user?.username}
-            <div>Existing files:</div>
-            <div className="flex flex-col gap-4">
-                {files.map((file) => (
-                    <div key={file.id} className="flex flex-row gap-4">
-                        <p>{file.name}</p>
-                    </div>
-                ))}
-            </div>
-            <div>
-                <button
-                    className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
-                    onClick={() => handleDelete()}
-                >
-                    Confirm Delete
-                </button>
-            </div>
-        </div>
-    );
-};
+  return (
+    <main className="bg-[url('/images/bg-main.svg')] bg-cover min-h-screen flex items-center justify-center">
+      <div className="gradient-border shadow-lg">
+        <section className="flex flex-col gap-8 bg-white rounded-2xl p-10 max-w-md w-full text-center">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-2xl font-bold text-red-600">Wipe App Data</h2>
+            <p className="text-gray-600">
+              This will permanently delete all{" "}
+              <strong>{count} analyzed resume{count !== 1 ? "s" : ""}</strong>{" "}
+              from your account. This action cannot be undone.
+            </p>
+          </div>
 
-export default WipeApp;
+          <Form method="post" className="flex flex-col gap-4 items-center">
+            <button
+              type="submit"
+              className="bg-red-500 hover:bg-red-600 text-white rounded-full px-8 py-3 font-semibold transition-colors duration-200 cursor-pointer w-full"
+            >
+              Confirm Delete
+            </button>
+          </Form>
+
+          <a
+            href="/"
+            className="text-sm text-gray-400 hover:text-gray-700 underline underline-offset-4 transition-colors duration-200"
+          >
+            Cancel, take me back
+          </a>
+        </section>
+      </div>
+    </main>
+  );
+}

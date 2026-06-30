@@ -1,0 +1,203 @@
+{
+  "buildManifest": {
+    "serverBundles": {
+      "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0": {
+        "id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+        "file": "build/server/nodejs_eyJydW50aW1lIjoibm9kZWpzIn0/index.js",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    },
+    "routeIdToServerBundleId": {
+      "routes/home": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/upload": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/resume": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/resume-pdf": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/wipe": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "app/root.tsx",
+        "path": "",
+        "config": {}
+      },
+      "routes/home": {
+        "id": "routes/home",
+        "parentId": "root",
+        "file": "app/routes/home.tsx",
+        "index": true,
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth": {
+        "id": "routes/auth",
+        "parentId": "root",
+        "file": "app/routes/auth.tsx",
+        "path": "/auth",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/logout": {
+        "id": "routes/logout",
+        "parentId": "root",
+        "file": "app/routes/logout.tsx",
+        "path": "/logout",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/upload": {
+        "id": "routes/upload",
+        "parentId": "root",
+        "file": "app/routes/upload.tsx",
+        "path": "/upload",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/resume": {
+        "id": "routes/resume",
+        "parentId": "root",
+        "file": "app/routes/resume.tsx",
+        "path": "/resume/:id",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/resume-pdf": {
+        "id": "routes/resume-pdf",
+        "parentId": "root",
+        "file": "app/routes/resume-pdf.tsx",
+        "path": "/resume/:id/pdf",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/wipe": {
+        "id": "routes/wipe",
+        "parentId": "root",
+        "file": "app/routes/wipe.tsx",
+        "path": "/wipe",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    }
+  },
+  "reactRouterConfig": {
+    "appDirectory": "D:/AI RESUME ANALYZER/app",
+    "basename": "/",
+    "buildDirectory": "D:/AI RESUME ANALYZER/build",
+    "future": {
+      "unstable_middleware": false,
+      "unstable_optimizeDeps": false,
+      "unstable_splitRouteModules": false,
+      "unstable_subResourceIntegrity": false,
+      "unstable_viteEnvironmentApi": false
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "root.tsx",
+        "path": ""
+      },
+      "routes/home": {
+        "id": "routes/home",
+        "parentId": "root",
+        "file": "routes/home.tsx",
+        "index": true
+      },
+      "routes/auth": {
+        "id": "routes/auth",
+        "parentId": "root",
+        "file": "routes/auth.tsx",
+        "path": "/auth"
+      },
+      "routes/logout": {
+        "id": "routes/logout",
+        "parentId": "root",
+        "file": "routes/logout.tsx",
+        "path": "/logout"
+      },
+      "routes/upload": {
+        "id": "routes/upload",
+        "parentId": "root",
+        "file": "routes/upload.tsx",
+        "path": "/upload"
+      },
+      "routes/resume": {
+        "id": "routes/resume",
+        "parentId": "root",
+        "file": "routes/resume.tsx",
+        "path": "/resume/:id"
+      },
+      "routes/resume-pdf": {
+        "id": "routes/resume-pdf",
+        "parentId": "root",
+        "file": "routes/resume-pdf.tsx",
+        "path": "/resume/:id/pdf"
+      },
+      "routes/wipe": {
+        "id": "routes/wipe",
+        "parentId": "root",
+        "file": "routes/wipe.tsx",
+        "path": "/wipe"
+      }
+    },
+    "routeDiscovery": {
+      "mode": "lazy",
+      "manifestPath": "/__manifest"
+    },
+    "serverBuildFile": "index.js",
+    "serverModuleFormat": "esm",
+    "ssr": true,
+    "unstable_routeConfig": [
+      {
+        "id": "root",
+        "path": "",
+        "file": "root.tsx",
+        "children": [
+          {
+            "file": "routes/home.tsx",
+            "index": true
+          },
+          {
+            "file": "routes/auth.tsx",
+            "path": "/auth"
+          },
+          {
+            "file": "routes/logout.tsx",
+            "path": "/logout"
+          },
+          {
+            "file": "routes/upload.tsx",
+            "path": "/upload"
+          },
+          {
+            "file": "routes/resume.tsx",
+            "path": "/resume/:id"
+          },
+          {
+            "file": "routes/resume-pdf.tsx",
+            "path": "/resume/:id/pdf"
+          },
+          {
+            "file": "routes/wipe.tsx",
+            "path": "/wipe"
+          }
+        ]
+      }
+    ]
+  },
+  "viteConfig": {
+    "build": {
+      "assetsDir": "assets"
+    }
+  }
+}
