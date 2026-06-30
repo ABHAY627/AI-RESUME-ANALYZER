@@ -90,9 +90,9 @@ export default function ResumePage({ loaderData }: Route.ComponentProps) {
                 alt="resume preview"
               />
             ) : pdfUrl ? (
-              // Real upload: embed PDF directly from Vercel Blob
+              // Proxy through our server to avoid Vercel Blob's X-Frame-Options: DENY
               <iframe
-                src={pdfUrl}
+                src={`/resume/${resume.id}/pdf`}
                 className="w-full h-full rounded-2xl"
                 title="resume"
               />
