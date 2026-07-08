@@ -10,6 +10,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prepareInstructions } from "../../resumeData";
 import type { Route } from "./+types/upload";
 
+
 export const meta = () => [
     { title: "ResumeXpert | Upload" },
     { name: "description", content: "Upload your resume for AI feedback" },
@@ -32,7 +33,19 @@ function stripCodeFences(text: string): string {
     return text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
 }
 
+function extractJsonSubstring(text: string): string | null {
+    const objStart = text.indexOf("{");
+    const objEnd = text.lastIndexOf("}");
+    if (objStart !== -1 && objEnd > objStart) return text.slice(objStart, objEnd + 1);
+    const arrStart = text.indexOf("[");
+    const arrEnd = text.lastIndexOf("]");
+    if (arrStart !== -1 && arrEnd > arrStart) return text.slice(arrStart, arrEnd + 1);
+    return null;
+}
+
 // ─── Action ───────────────────────────────────────────────────────────────────
+
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 export async function action({ request }: Route.ActionArgs) {
     const user = await requireUser(request);
@@ -51,18 +64,26 @@ export async function action({ request }: Route.ActionArgs) {
 
     if (!companyName || !jobTitle) return { error: "Company name and job title are required." };
     if (!file || file.size === 0)  return { error: "Please upload a valid PDF resume." };
-    if (file.type !== "application/pdf") return { error: "Only PDF files are supported." };
-
-    // Idempotency — reuse existing record if already saved (with or without feedback)
-    const idempotencyKey = `${user.id}-${slugify(companyName)}-${slugify(jobTitle)}`;
-    const existingRows = await sql()`SELECT id FROM "Resume" WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
-    if (existingRows[0]) return { redirectTo: `/resume/${(existingRows[0] as { id: string }).id}` };
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) return { error: "Only PDF files are supported." };
 
     // Upload PDF
     const pdfBuffer = await file.arrayBuffer();
     const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
 
-    // ── Save to DB first (always, before AI) ─────────────────────────────────
+    // Idempotency — reuse existing record ONLY if it already has feedback.
+    const idempotencyKey = `${user.id}-${slugify(companyName)}-${slugify(jobTitle)}`;
+    const existingRows = await sql()`SELECT id, feedback FROM "Resume" WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
+    if (existingRows[0]) {
+        const existing = existingRows[0] as { id: string; feedback: unknown | null };
+        if (existing.feedback) {
+            return { redirectTo: `/resume/${existing.id}` };
+        }
+        // Previous upload had no AI feedback — delete so we can retry
+        await sql()`DELETE FROM "Resume" WHERE id = ${existing.id}`;
+    }
+
+    // ── Save to DB ───────────────────────────────────────────────────────────
     const resumeRows = await sql()`
         INSERT INTO "Resume" (id, user_id, company_name, job_title, job_description, pdf_url, image_url, pdf_data, feedback, idempotency_key)
         VALUES (gen_random_uuid()::text, ${user.id}, ${companyName}, ${jobTitle}, ${jobDescription}, '', '', ${base64Pdf}, NULL, ${idempotencyKey})
@@ -70,26 +91,47 @@ export async function action({ request }: Route.ActionArgs) {
     `;
     const resumeId = (resumeRows[0] as { id: string }).id;
 
-    // ── Gemini AI analysis (non-blocking — resume is shown regardless) ────────
-    const genAI  = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model  = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const prompt = prepareInstructions({ jobTitle, jobDescription });
-
+    // ── Gemini AI analysis (single model: gemini-1.5-flash) ──────────────────
     try {
-        const result   = await model.generateContent([
+        const apiKey = env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const prompt = prepareInstructions({ jobTitle, jobDescription });
+
+        console.log(`[Gemini] Calling ${GEMINI_MODEL}...`);
+        const result = await model.generateContent([
             { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
             prompt,
         ]);
-        const raw      = result.response.text();
-        const cleaned  = stripCodeFences(raw);
-        const feedback = JSON.parse(cleaned);
+        const raw = await result.response.text();
+        console.log(`[Gemini] ✅ Got response from ${GEMINI_MODEL}`);
 
-        await sql()`UPDATE "Resume" SET feedback = ${JSON.stringify(feedback)}::jsonb WHERE id = ${resumeId}`;
+        const cleaned = stripCodeFences(raw);
+        let feedback: any = null;
+
+        try {
+            feedback = JSON.parse(cleaned);
+        } catch {
+            const candidate = extractJsonSubstring(cleaned);
+            if (candidate) {
+                try { feedback = JSON.parse(candidate); } catch { /* ignore */ }
+            }
+        }
+
+        if (feedback) {
+            await sql()`UPDATE "Resume" SET feedback = ${JSON.stringify(feedback)}::jsonb, raw_ai_text = ${cleaned}, raw_ai_response = ${JSON.stringify(feedback)}::jsonb WHERE id = ${resumeId}`;
+            console.log(`[Gemini] ✅ Feedback saved for resume ${resumeId}`);
+        } else {
+            await sql()`UPDATE "Resume" SET raw_ai_text = ${cleaned} WHERE id = ${resumeId}`;
+            console.error("[Gemini] Could not parse feedback JSON");
+        }
     } catch (err) {
-        console.error("[Gemini]", err);
-        // Resume still saved with PDF — user sees it with error message on right
+        console.error(`[Gemini] ${GEMINI_MODEL} failed:`, err);
     }
 
+    // Always redirect to the resume page — shows analysis if available, or "unavailable" message
     return { redirectTo: `/resume/${resumeId}` };
 }
 
